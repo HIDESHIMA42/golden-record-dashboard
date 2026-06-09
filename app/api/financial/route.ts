@@ -1,16 +1,21 @@
 import { NextResponse } from 'next/server';
+import { kv } from '@vercel/kv';
 
 const TOKEN_URL  = 'https://accounts.secure.freee.co.jp/public_api/token';
 const API_BASE   = 'https://api.freee.co.jp';
 const COMPANY_ID = process.env.FREEE_COMPANY_ID ?? '11590903';
 const FISCAL_YEAR = '2025';
+const KV_KEY = 'freee_refresh_token';
 
 async function getAccessToken(): Promise<string> {
+  // KVから最新のrefresh_tokenを取得（なければenv varを使用）
+  const refreshToken = (await kv.get<string>(KV_KEY)) ?? process.env.FREEE_REFRESH_TOKEN ?? '';
+
   const params = new URLSearchParams({
     grant_type:    'refresh_token',
     client_id:     process.env.FREEE_CLIENT_ID ?? '',
     client_secret: process.env.FREEE_CLIENT_SECRET ?? '',
-    refresh_token: process.env.FREEE_REFRESH_TOKEN ?? '',
+    refresh_token: refreshToken,
   });
   const res = await fetch(TOKEN_URL, {
     method: 'POST',
@@ -21,6 +26,10 @@ async function getAccessToken(): Promise<string> {
   const data = await res.json();
   if (!data.access_token) {
     throw new Error('Token refresh failed: ' + JSON.stringify(data));
+  }
+  // 新しいrefresh_tokenをKVに保存（ローテーション対応）
+  if (data.refresh_token) {
+    await kv.set(KV_KEY, data.refresh_token);
   }
   return data.access_token as string;
 }
