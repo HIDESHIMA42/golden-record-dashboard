@@ -96,10 +96,10 @@ export default function Dashboard() {
       { name: 'その他',     val: get(pl, '通信費') + get(pl, '消耗品費') + get(pl, '支払手数料') + get(pl, '旅費交通費') + get(pl, '交際費') + get(pl, '会議費') + get(pl, '減価償却費') },
     ];
 
-    // load Chart.js dynamically
-    import('https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js' as never).catch(() => {}).finally(() => {
+    // Chart.js is loaded via <script> tag — poll until available
+    const tryInit = () => {
       // @ts-expect-error Chart is global
-      if (typeof Chart === 'undefined') return;
+      if (typeof Chart === 'undefined') { setTimeout(tryInit, 100); return; }
       // @ts-expect-error Chart is global
       const ChartCls = Chart;
 
@@ -124,7 +124,8 @@ export default function Dashboard() {
         },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 10 }, boxWidth: 12 } } } },
       }));
-    });
+    };
+    tryInit();
   }, [data]);
 
   if (loading) return (
